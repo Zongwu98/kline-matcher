@@ -51,16 +51,24 @@ def fetch_klines(symbol_raw: str, interval: str, limit: int, exchange: str):
     symbol = normalize_symbol(symbol_raw, exchange)
     try:
         if exchange == "binance":
-            url    = "https://api1.binance.com/api/v3/klines"
-            params = {"symbol": symbol, "interval": interval, "limit": limit}
+            # 币安美国节点受限，改走 OKX 获取相同数据
+            iv_map = {"1h":"1H","2h":"2H","4h":"4H","6h":"6H","12h":"12H","1d":"1D"}
+            iv     = iv_map.get(interval, interval.upper())
+            # 把 binance symbol 转成 OKX 格式，如 ETHUSDT -> ETH-USDT
+            okx_symbol = symbol[:-4] + "-" + symbol[-4:] if symbol.endswith("USDT") else symbol[:-3] + "-" + symbol[-3:]
+            url    = "https://www.okx.com/api/v5/market/history-candles"
+            params = {"instId": okx_symbol, "bar": iv, "limit": min(limit, 300)}
             resp   = requests.get(url, params=params, timeout=10)
-            data   = resp.json()
-            if isinstance(data, dict) and "code" in data:
-                raise ValueError(f"Binance 错误: {data.get('msg', data)}")
+            body   = resp.json()
+            if body.get("code") != "0":
+                raise ValueError(f"Binance 错误: {body.get('msg', body)}")
+            data = body["data"]
+            if not data:
+                raise ValueError(f"未返回数据，请确认交易对 {symbol} 存在")
             df = pd.DataFrame(data, columns=[
-                "time","open","high","low","close","volume",
-                "close_time","quote_vol","trades","taker_buy_base","taker_buy_quote","ignore"
+                "time","open","high","low","close","volume","volCcy","volCcyQuote","confirm"
             ])[["time","open","high","low","close","volume"]]
+            df = df.iloc[::-1].reset_index(drop=True)
 
         elif exchange == "bybit":
             # Bybit interval 映射
