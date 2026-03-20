@@ -51,7 +51,7 @@ def fetch_klines(symbol_raw: str, interval: str, limit: int, exchange: str):
     symbol = normalize_symbol(symbol_raw, exchange)
     try:
         if exchange == "binance":
-            url    = "https://api.binance.com/api/v3/klines"
+            url    = "https://api1.binance.com/api/v3/klines"
             params = {"symbol": symbol, "interval": interval, "limit": limit}
             resp   = requests.get(url, params=params, timeout=10)
             data   = resp.json()
